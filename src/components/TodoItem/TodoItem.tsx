@@ -99,7 +99,7 @@ export const TodoItem = ({ todo, onToggle, onDelete, onUpdate }: TodoItemProps) 
               color={todo.completed ? 'success' : 'default'}
               label={todo.completed ? 'Готово' : 'В работе'}
             />
-            <TimeLabel>{dateFormatter.format(todo.createdAt)}</TimeLabel>
+            <TimeLabel>{dateFormatter.format(new Date(todo.createdAt))}</TimeLabel>
           </Meta>
           <Actions>
             <Button variant="outlined" size="small" onClick={() => setIsEditing(true)}>

@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react'
 import {
+  Alert,
+  Box,
   Chip,
+  CircularProgress,
   FormControl,
   InputLabel,
   MenuItem,
+  Pagination,
   Select,
   Switch,
   type SelectChangeEvent,
@@ -13,8 +17,20 @@ import styled from 'styled-components'
 import { AddTodo } from './components/AddTodo/AddTodo'
 import { TodoList } from './components/TodoList/TodoList'
 import { useThemeMode } from './context/useThemeMode'
+import { useAppDispatch, useAppSelector } from './store/hooks'
+import {
+  clearError,
+  createTodoThunk,
+  deleteTodoThunk,
+  fetchTodosThunk,
+  setFilter,
+  setLimit,
+  setPage,
+  setSortOrder,
+  toggleTodoThunk,
+  updateTodoThunk,
+} from './store/todoSlice'
 import type { SortOrder, Todo, TodoFilter } from './types/todo'
-import { getStoredTodos, saveTodos } from './utils/localStorage'
 
 const Page = styled.main`
   min-height: 100vh;
@@ -37,9 +53,8 @@ const Shell = styled.div`
 
 const Header = styled.header`
   padding: 28px;
-  border-bottom: 1px solid ${({theme}) => theme.colors.border};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   background: rgb(156, 191, 241);
-  ${({theme}) => theme.gradients.accent};
   color: #fff7ef;
 
   @media (max-width: 640px) {
@@ -57,15 +72,6 @@ const HeaderTop = styled.div`
     flex-direction: column;
   }
 `
-
-/*const Eyebrow = styled.p`
-  margin: 0 0 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  font-size: 0.8rem;
-  font-weight: 700;
-  opacity: 0.86;
-`*/
 
 const Title = styled.h1`
   margin: 0;
@@ -103,7 +109,7 @@ const Content = styled.section`
 
 const ControlPanel = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, minmax(180px, 220px));
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
   gap: 14px;
   margin: 12px 0 20px;
 
@@ -115,6 +121,7 @@ const ControlPanel = styled.div`
 const Stats = styled.div`
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
   margin-bottom: 22px;
 `
@@ -125,41 +132,54 @@ const SectionLabel = styled.p`
   font-size: 0.92rem;
 `
 
-const filterTodo = (todo: Todo, filter: TodoFilter): boolean => {
-  if (filter === 'completed') {
-    return todo.completed
-  }
+const FooterControls = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 22px;
 
-  if (filter === 'active') {
-    return !todo.completed
+  @media (max-width: 640px) {
+    align-items: stretch;
+    flex-direction: column;
   }
+`
 
-  return true
-}
+const PageSummary = styled.p`
+  margin: 0;
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 0.92rem;
+`
+
+const LoadingBox = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: ${({ theme }) => theme.colors.textMuted};
+`
 
 const sortTodos = (leftTodo: Todo, rightTodo: Todo, sortOrder: SortOrder): number => {
-  const leftDate = leftTodo.createdAt.getTime()
-  const rightDate = rightTodo.createdAt.getTime()
+  const leftDate = new Date(leftTodo.createdAt).getTime()
+  const rightDate = new Date(rightTodo.createdAt).getTime()
 
   return sortOrder === 'newest' ? rightDate - leftDate : leftDate - rightDate
 }
 
 function App() {
   const { themeMode, toggleTheme } = useThemeMode()
-  const [todos, setTodos] = useState<Todo[]>(() => getStoredTodos())
+  const dispatch = useAppDispatch()
+  const { todos, total, page, limit, totalPages, filter, sortOrder, loading, error } =
+    useAppSelector((state) => state.todos)
   const [inputValue, setInputValue] = useState('')
   const [inputError, setInputError] = useState('')
-  const [filter, setFilter] = useState<TodoFilter>('all')
-  const [sortOrder, setSortOrder] = useState<SortOrder>('newest')
 
   useEffect(() => {
-    saveTodos(todos)
-  }, [todos])
+    void dispatch(fetchTodosThunk({ page, limit, filter }))
+  }, [dispatch, filter, limit, page])
 
-  const visibleTodos = [...todos]
-    .filter((todo) => filterTodo(todo, filter))
-    .sort((leftTodo, rightTodo) => sortTodos(leftTodo, rightTodo, sortOrder))
-
+  const visibleTodos = [...todos].sort((leftTodo, rightTodo) =>
+    sortTodos(leftTodo, rightTodo, sortOrder),
+  )
   const completedCount = todos.filter((todo) => todo.completed).length
   const activeCount = todos.length - completedCount
 
@@ -171,24 +191,25 @@ function App() {
       return
     }
 
-    const newTodo: Todo = {
-      id: Date.now(),
-      text: trimmedValue,
-      completed: false,
-      createdAt: new Date(),
-    }
-
-    setTodos((currentTodos) => [...currentTodos, newTodo])
-    setInputValue('')
+    void dispatch(createTodoThunk(trimmedValue))
+      .unwrap()
+      .then(() => {
+        setInputValue('')
+      })
+      .catch(() => undefined)
     setInputError('')
   }
 
   const handleFilterChange = (event: SelectChangeEvent<TodoFilter>) => {
-    setFilter(event.target.value as TodoFilter)
+    dispatch(setFilter(event.target.value as TodoFilter))
   }
 
   const handleSortChange = (event: SelectChangeEvent<SortOrder>) => {
-    setSortOrder(event.target.value as SortOrder)
+    dispatch(setSortOrder(event.target.value as SortOrder))
+  }
+
+  const handleLimitChange = (event: SelectChangeEvent) => {
+    dispatch(setLimit(Number(event.target.value)))
   }
 
   return (
@@ -197,11 +218,8 @@ function App() {
         <Header>
           <HeaderTop>
             <div>
-
               <Title>ToDo App</Title>
-              <Subtitle>
-                Приложение для управления задачами
-              </Subtitle>
+              <Subtitle>Приложение для управления задачами</Subtitle>
             </div>
             <ThemeToggle>
               {themeMode === 'light' ? 'Светлая' : 'Темная'}
@@ -232,7 +250,7 @@ function App() {
                 label="Сортировка"
                 onChange={handleSortChange}
               >
-                <MenuItem value="newest">Cначала новые</MenuItem>
+                <MenuItem value="newest">Сначала новые</MenuItem>
                 <MenuItem value="oldest">Сначала старые</MenuItem>
               </Select>
             </FormControl>
@@ -250,33 +268,68 @@ function App() {
                 <MenuItem value="active">Невыполненные</MenuItem>
               </Select>
             </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel id="limit-label">На странице</InputLabel>
+              <Select
+                labelId="limit-label"
+                value={String(limit)}
+                label="На странице"
+                onChange={handleLimitChange}
+              >
+                <MenuItem value="5">5</MenuItem>
+                <MenuItem value="10">10</MenuItem>
+                <MenuItem value="20">20</MenuItem>
+              </Select>
+            </FormControl>
           </ControlPanel>
+
+          {error && (
+            <Alert severity="error" onClose={() => dispatch(clearError())} sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
 
           <SectionLabel>Сводка по задачам</SectionLabel>
           <Stats>
-            <Chip label={`Всего: ${todos.length}`} />
-            <Chip color="success" variant="outlined" label={`Готовые: ${completedCount}`} />
-            <Chip color="primary" variant="outlined" label={`Неготовые: ${activeCount}`} />
+            <Chip label={`Всего по фильтру: ${total}`} />
+            <Chip color="success" variant="outlined" label={`На странице готово: ${completedCount}`} />
+            <Chip color="primary" variant="outlined" label={`На странице неготово: ${activeCount}`} />
+            {loading && (
+              <LoadingBox>
+                <CircularProgress size={18} />
+                Загрузка
+              </LoadingBox>
+            )}
           </Stats>
 
           <TodoList
             todos={visibleTodos}
             onToggle={(todoId) => {
-              setTodos((currentTodos) =>
-                currentTodos.map((todo) =>
-                  todo.id === todoId ? { ...todo, completed: !todo.completed } : todo,
-                ),
-              )
+              void dispatch(toggleTodoThunk(todoId))
             }}
             onDelete={(todoId) => {
-              setTodos((currentTodos) => currentTodos.filter((todo) => todo.id !== todoId))
+              void dispatch(deleteTodoThunk(todoId))
             }}
             onUpdate={(todoId, text) => {
-              setTodos((currentTodos) =>
-                currentTodos.map((todo) => (todo.id === todoId ? { ...todo, text } : todo)),
-              )
+              void dispatch(updateTodoThunk({ id: todoId, text }))
             }}
           />
+
+          <FooterControls>
+            <PageSummary>
+              Страница {page} из {totalPages}. На странице: {visibleTodos.length}
+            </PageSummary>
+            <Box>
+              <Pagination
+                count={totalPages}
+                page={page}
+                color="primary"
+                disabled={loading}
+                onChange={(_, nextPage) => dispatch(setPage(nextPage))}
+              />
+            </Box>
+          </FooterControls>
         </Content>
       </Shell>
     </Page>

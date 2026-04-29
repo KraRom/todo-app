@@ -51,7 +51,7 @@ export const getStoredTodos = (): Todo[] => {
           id: todo.id,
           text: todo.text,
           completed: todo.completed,
-          createdAt,
+          createdAt: todo.createdAt,
         }
       })
       .filter((todo): todo is Todo => todo !== null)
@@ -67,7 +67,7 @@ export const saveTodos = (todos: Todo[]): void => {
 
   const serializedTodos: StoredTodo[] = todos.map((todo) => ({
     ...todo,
-    createdAt: todo.createdAt.toISOString(),
+    createdAt: todo.createdAt,
   }))
 
   window.localStorage.setItem(TODOS_STORAGE_KEY, JSON.stringify(serializedTodos))

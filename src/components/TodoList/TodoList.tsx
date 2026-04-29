@@ -26,11 +26,7 @@ const EmptyState = styled.div`
 
 export const TodoList = ({ todos, onToggle, onDelete, onUpdate }: TodoListProps) => {
   if (!todos.length) {
-    return (
-      <EmptyState>
-        Задачи отсутсвуют
-      </EmptyState>
-    )
+    return <EmptyState>Задачи отсутствуют</EmptyState>
   }
 
   return (
