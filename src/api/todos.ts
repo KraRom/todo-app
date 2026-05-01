@@ -2,7 +2,7 @@ import axios from 'axios'
 
 import type { Todo, TodoFilter, TodosResponse } from '../types/todo'
 
-const API_URL = 'http://localhost:3001'
+const API_URL = 'https://todo-redux-server-f22y.onrender.com'
 
 interface UpdateTodoPayload {
   text?: string
