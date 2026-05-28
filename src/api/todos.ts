@@ -1,8 +1,5 @@
-import axios from 'axios'
-
 import type { Todo, TodoFilter, TodosResponse } from '../types/todo'
-
-const API_URL = 'https://todo-redux-server-f22y.onrender.com'
+import { apiClient } from './client'
 
 interface UpdateTodoPayload {
   text?: string
@@ -14,7 +11,7 @@ export const fetchTodos = async (
   limit: number,
   filter: TodoFilter,
 ): Promise<TodosResponse> => {
-  const response = await axios.get<TodosResponse>(`${API_URL}/todos`, {
+  const response = await apiClient.get<TodosResponse>('/todos', {
     params: {
       page,
       limit,
@@ -26,23 +23,23 @@ export const fetchTodos = async (
 }
 
 export const createTodo = async (text: string): Promise<Todo> => {
-  const response = await axios.post<Todo>(`${API_URL}/todos`, { text })
+  const response = await apiClient.post<Todo>('/todos', { text })
 
   return response.data
 }
 
 export const updateTodo = async (id: number, payload: UpdateTodoPayload): Promise<Todo> => {
-  const response = await axios.put<Todo>(`${API_URL}/todos/${id}`, payload)
+  const response = await apiClient.put<Todo>(`/todos/${id}`, payload)
 
   return response.data
 }
 
 export const deleteTodo = async (id: number): Promise<void> => {
-  await axios.delete(`${API_URL}/todos/${id}`)
+  await apiClient.delete(`/todos/${id}`)
 }
 
 export const toggleTodo = async (id: number): Promise<Todo> => {
-  const response = await axios.patch<Todo>(`${API_URL}/todos/${id}/toggle`)
+  const response = await apiClient.patch<Todo>(`/todos/${id}/toggle`)
 
   return response.data
 }

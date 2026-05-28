@@ -7,6 +7,7 @@ import {
   toggleTodo,
   updateTodo,
 } from '../api/todos'
+import { logoutUser } from './authSlice'
 import type { SortOrder, Todo, TodoFilter, TodosResponse } from '../types/todo'
 
 interface FetchTodosArgs {
@@ -184,6 +185,7 @@ const todoSlice = createSlice({
         state.loading = false
         state.error = action.payload ?? 'Не удалось загрузить задачи'
       })
+      .addCase(logoutUser, () => initialState)
       .addMatcher(
         isAnyOf(
           createTodoThunk.pending,
